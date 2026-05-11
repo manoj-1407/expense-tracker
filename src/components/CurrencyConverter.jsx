@@ -4,16 +4,7 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'SGD', 'AED', 'CAD', 'AUD
 
 // Try two APIs in order — if the first fails, fall back to the second
 async function fetchRate(currency) {
-  // API 1: Frankfurter.app (ECB data, no key needed)
-  try {
-    const r = await fetch(`https://api.frankfurter.app/latest?from=INR&to=${currency}`)
-    if (r.ok) {
-      const d = await r.json()
-      return { rate: d.rates[currency], source: 'Frankfurter.app' }
-    }
-  } catch {}
-
-  // API 2: Open Exchange Rates (free, no key, USD base — so we chain: INR→USD→target)
+  // API 1: ExchangeRate-API (primary — works on Vercel)
   try {
     const r = await fetch('https://open.er-api.com/v6/latest/INR')
     if (r.ok) {
@@ -21,6 +12,15 @@ async function fetchRate(currency) {
       if (d.rates && d.rates[currency]) {
         return { rate: d.rates[currency], source: 'ExchangeRate-API' }
       }
+    }
+  } catch {}
+
+  // API 2: Frankfurter.app (fallback)
+  try {
+    const r = await fetch(`https://api.frankfurter.app/latest?from=INR&to=${currency}`)
+    if (r.ok) {
+      const d = await r.json()
+      return { rate: d.rates[currency], source: 'Frankfurter.app' }
     }
   } catch {}
 
