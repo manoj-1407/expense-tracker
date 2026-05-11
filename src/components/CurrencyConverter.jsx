@@ -2,36 +2,59 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'SGD', 'AED', 'CAD', 'AUD', 'CNY', 'CHF']
 
+// Try two APIs in order — if the first fails, fall back to the second
+async function fetchRate(currency) {
+  // API 1: Frankfurter.app (ECB data, no key needed)
+  try {
+    const r = await fetch(`https://api.frankfurter.app/latest?from=INR&to=${currency}`)
+    if (r.ok) {
+      const d = await r.json()
+      return { rate: d.rates[currency], source: 'Frankfurter.app' }
+    }
+  } catch {}
+
+  // API 2: Open Exchange Rates (free, no key, USD base — so we chain: INR→USD→target)
+  try {
+    const r = await fetch('https://open.er-api.com/v6/latest/INR')
+    if (r.ok) {
+      const d = await r.json()
+      if (d.rates && d.rates[currency]) {
+        return { rate: d.rates[currency], source: 'ExchangeRate-API' }
+      }
+    }
+  } catch {}
+
+  throw new Error('All APIs failed')
+}
+
 export default function CurrencyConverter({ totalINR }) {
   const [to, setTo] = useState('USD')
   const [rate, setRate] = useState(null)
+  const [source, setSource] = useState(null)
   const [status, setStatus] = useState('idle')
   const [ts, setTs] = useState(null)
   const cacheRef = useRef({})
 
   const load = useCallback(async (currency) => {
     if (currency === 'INR') {
-      setRate(1); setStatus('ok')
+      setRate(1); setSource(null); setStatus('ok')
       setTs(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }))
       return
     }
-    // Use cached rate if available (avoid hammering API on every keystroke)
     if (cacheRef.current[currency]) {
-      setRate(cacheRef.current[currency]); setStatus('ok')
+      const cached = cacheRef.current[currency]
+      setRate(cached.rate); setSource(cached.source); setStatus('ok')
       setTs(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }))
       return
     }
     setStatus('busy')
     try {
-      const r = await fetch(`https://api.frankfurter.app/latest?from=INR&to=${currency}`)
-      if (!r.ok) throw new Error()
-      const d = await r.json()
-      const fetched = d.rates[currency]
-      cacheRef.current[currency] = fetched
-      setRate(fetched); setStatus('ok')
+      const { rate: fetched, source: src } = await fetchRate(currency)
+      cacheRef.current[currency] = { rate: fetched, source: src }
+      setRate(fetched); setSource(src); setStatus('ok')
       setTs(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }))
     } catch {
-      setStatus('err'); setRate(null)
+      setStatus('err'); setRate(null); setSource(null)
     }
   }, [])
 
@@ -75,7 +98,7 @@ export default function CurrencyConverter({ totalINR }) {
       </div>
 
       {status === 'ok' && rate && to !== 'INR' && (
-        <p className="conv-note">1 INR = {rate.toFixed(5)} {to} · Frankfurter.app</p>
+        <p className="conv-note">1 INR = {rate.toFixed(5)} {to} · {source}</p>
       )}
       {status === 'ok' && to === 'INR' && (
         <p className="conv-note">Showing total in base currency (INR)</p>
