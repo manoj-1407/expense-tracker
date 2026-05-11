@@ -4,9 +4,9 @@ A personal expense tracker built with React + Vite for the **Marketing Mojito We
 
 ## Live Demo
 
-> 🔗 **[Add your Vercel/Netlify URL here after deployment]**
+> 🔗 **https://expense-tracker-g4qrupdrh-manoj-1407s-projects.vercel.app**
 > 
-> GitHub: [Add your GitHub repo URL here]
+> GitHub: https://github.com/manoj-1407/expense-tracker
 
 ---
 
